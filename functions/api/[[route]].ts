@@ -1,6 +1,6 @@
 import firebaseConfig from '../../firebase-applet-config.json';
 
-interface Env {
+export interface EdgeEnv {
   GEMINI_API_KEY?: string;
   TELEGRAM_BOT_TOKEN?: string;
   TELEGRAM_DEFAULT_CHAT_ID?: string;
@@ -9,6 +9,8 @@ interface Env {
   APP_URL?: string;
   FIREBASE_API_KEY?: string;
 }
+
+type Env = EdgeEnv;
 
 interface PagesContext {
   request: Request;
@@ -255,7 +257,10 @@ async function callGeminiStructured(
 }
 
 export async function onRequest(context: PagesContext): Promise<Response> {
-  const { request, env } = context;
+  return handleApiRequest(context.request, context.env);
+}
+
+export async function handleApiRequest(request: Request, env: EdgeEnv): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
   const method = request.method.toUpperCase();
@@ -263,7 +268,7 @@ export async function onRequest(context: PagesContext): Promise<Response> {
   if (method === 'GET' && path === '/api/health') {
     return jsonResponse({
       ok: true,
-      runtime: 'cloudflare-pages',
+      runtime: 'cloudflare-edge',
       telegramBotConfigured: Boolean(env.TELEGRAM_BOT_TOKEN),
       geminiConfigured: Boolean(env.GEMINI_API_KEY),
     });
