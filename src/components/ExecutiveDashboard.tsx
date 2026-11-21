@@ -13,6 +13,7 @@ import {
   Pencil,
 } from 'lucide-react';
 import { EditLeaveModal } from './EditLeaveModal';
+import { SharedLeaveCalendar } from './SharedLeaveCalendar';
 import {
   DON_PHUT_DEPARTMENTS,
   LEAVE_STATUS_LABELS,
@@ -25,7 +26,7 @@ import type {
   StaffPublicProfile,
   SystemSettings,
 } from '../types/leave';
-import { formatThaiDateShort, getCurrentFiscalYear } from '../lib/thaiDate';
+import { formatThaiDateShort, getCurrentFiscalYear, toLocalIsoDate } from '../lib/thaiDate';
 
 interface ExecutiveDashboardProps {
   currentStaff: StaffPublicProfile;
@@ -83,7 +84,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
     return req.requesterUid === currentStaff.uid || isVerifierOrAbove;
   };
 
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayIso = toLocalIsoDate(new Date());
 
   const fiscalRequests = useMemo(
     () => leaveRequests.filter((r) => r.fiscalYear === fiscalFilter),
@@ -474,6 +475,15 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Shared Leave & Staffing Coverage Calendar */}
+      <SharedLeaveCalendar
+        staffList={staffList}
+        leaveRequests={leaveRequests}
+        departments={activeDepartments}
+        onInspectApproval={onInspectApproval}
+        onSelectRequestForPrint={onSelectRequestForPrint}
+      />
 
       {/* Leave Requests Directory & Quick PDF Print */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">

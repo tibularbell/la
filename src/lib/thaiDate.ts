@@ -112,15 +112,29 @@ export function getCurrentFiscalYear(): number {
   return m >= 10 ? y + 544 : y + 543;
 }
 
-export function isThaiHolidayOrWeekend(dt: Date): boolean {
-  const day = dt.getDay();
-  if (day === 0 || day === 6) return true;
+export function toLocalIsoDate(dt: Date): string {
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const d = String(dt.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+export function formatThaiMonthYear(year: number, monthIndex: number): string {
+  const monthName = THAI_MONTHS_FULL[monthIndex] ?? '';
+  return `${monthName} ${year + 543}`;
+}
+
+export function isThaiOfficialHoliday(dt: Date): boolean {
   const yyyy = dt.getFullYear();
   const mm = String(dt.getMonth() + 1).padStart(2, '0');
   const dd = String(dt.getDate()).padStart(2, '0');
-  if (FIXED_THAI_HOLIDAYS.has(`${mm}-${dd}`)) return true;
-  if (SPECIFIC_THAI_HOLIDAYS.has(`${yyyy}-${mm}-${dd}`)) return true;
-  return false;
+  return FIXED_THAI_HOLIDAYS.has(`${mm}-${dd}`) || SPECIFIC_THAI_HOLIDAYS.has(`${yyyy}-${mm}-${dd}`);
+}
+
+export function isThaiHolidayOrWeekend(dt: Date): boolean {
+  const day = dt.getDay();
+  if (day === 0 || day === 6) return true;
+  return isThaiOfficialHoliday(dt);
 }
 
 export function calculateWorkingDays(startIso: string, endIso: string): number {
