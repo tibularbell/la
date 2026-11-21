@@ -1,0 +1,419 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net (Default-Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Primitive Helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isBootstrapAdmin() {
+      return isSignedIn() && request.auth.token.email == 'tibularbell@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrapAdmin() || (
+        isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function hasStaffRole(roles) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/staff_directory/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/staff_directory/$(request.auth.uid)).data.role in roles;
+    }
+
+    function isVerifierOrAbove() {
+      return isAdmin() || hasStaffRole(['verifier', 'supervisor', 'executive', 'admin']);
+    }
+
+    function isApproverOrExecutive() {
+      return isAdmin() || hasStaffRole(['supervisor', 'executive', 'admin']);
+    }
+
+    function isOptionalString(data, key, maxLen) {
+      return !(key in data) || (data[key] is string && data[key].size() <= maxLen);
+    }
+
+    function isOptionalNumber(data, key, minVal, maxVal) {
+      return !(key in data) || (data[key] is number && data[key] >= minVal && data[key] <= maxVal);
+    }
+
+    // 3. Validation Blueprints
+    function isValidStaffPublic(data) {
+      return data.keys().hasAll([
+          'uid', 'fullName', 'position', 'department', 'employmentType',
+          'role', 'accumulatedVacationDays', 'annualVacationQuota',
+          'usedVacationDays', 'usedSickDays', 'usedPersonalDays', 'usedOtherDays',
+          'isActive', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'uid', 'fullName', 'position', 'department', 'employmentType',
+          'role', 'accumulatedVacationDays', 'annualVacationQuota',
+          'usedVacationDays', 'usedSickDays', 'usedPersonalDays', 'usedOtherDays',
+          'isActive', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.uid) &&
+        data.fullName is string && data.fullName.size() >= 2 && data.fullName.size() <= 120 &&
+        data.position is string && data.position.size() >= 2 && data.position.size() <= 120 &&
+        data.department is string && data.department.size() >= 2 && data.department.size() <= 120 &&
+        data.employmentType in ['ข้าราชการ', 'พนักงานราชการ', 'ลูกจ้างประจำ', 'พนักงานกระทรวงสาธารณสุข', 'ลูกจ้างชั่วคราว'] &&
+        data.role in ['staff', 'verifier', 'supervisor', 'executive', 'admin'] &&
+        data.accumulatedVacationDays is number && data.accumulatedVacationDays >= 0 && data.accumulatedVacationDays <= 60 &&
+        data.annualVacationQuota is number && data.annualVacationQuota >= 0 && data.annualVacationQuota <= 30 &&
+        data.usedVacationDays is number && data.usedVacationDays >= 0 && data.usedVacationDays <= 90 &&
+        data.usedSickDays is number && data.usedSickDays >= 0 && data.usedSickDays <= 365 &&
+        data.usedPersonalDays is number && data.usedPersonalDays >= 0 && data.usedPersonalDays <= 90 &&
+        data.usedOtherDays is number && data.usedOtherDays >= 0 && data.usedOtherDays <= 365 &&
+        data.isActive is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidStaffPrivate(data) {
+      return data.keys().hasAll(['uid', 'email', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'phone', 'contactAddress', 'age', 'hireDate', 'telegramChatId', 'lineUserId', 'updatedAt']) &&
+        isValidId(data.uid) &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 160 &&
+        isOptionalString(data, 'phone', 32) &&
+        isOptionalString(data, 'contactAddress', 300) &&
+        (!( 'age' in data ) || (data.age is int && data.age >= 18 && data.age <= 90)) &&
+        isOptionalString(data, 'hireDate', 40) &&
+        isOptionalString(data, 'telegramChatId', 64) &&
+        isOptionalString(data, 'lineUserId', 64) &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidLeaveRequest(data) {
+      return data.keys().hasAll([
+          'requestId', 'requesterUid', 'requesterName', 'requesterPosition',
+          'department', 'leaveType', 'startDate', 'endDate', 'workingDays',
+          'fiscalYear', 'priorUsedDays', 'status', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'requestId', 'documentNo', 'requesterUid', 'requesterName', 'requesterPosition',
+          'department', 'leaveType', 'startDate', 'endDate', 'workingDays',
+          'fiscalYear', 'priorUsedDays', 'accumulatedDaysAtSubmit', 'annualQuotaAtSubmit',
+          'substituteUid', 'substituteName', 'status',
+          'verifierUid', 'verifierName', 'verifierPosition', 'verifiedAt',
+          'supervisorUid', 'supervisorName', 'supervisorPosition', 'supervisorComment',
+          'decisionAt', 'telegramNotifiedAt', 'lineNotifiedAt', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.requestId) &&
+        isValidId(data.requesterUid) &&
+        isOptionalString(data, 'documentNo', 40) &&
+        data.requesterName is string && data.requesterName.size() >= 2 && data.requesterName.size() <= 120 &&
+        data.requesterPosition is string && data.requesterPosition.size() >= 2 && data.requesterPosition.size() <= 120 &&
+        data.department is string && data.department.size() >= 2 && data.department.size() <= 120 &&
+        data.leaveType in ['vacation', 'sick', 'personal', 'maternity', 'ordination', 'overseas', 'other'] &&
+        data.startDate is string && data.startDate.size() == 10 && data.startDate.matches('^\\d{4}-\\d{2}-\\d{2}$') &&
+        data.endDate is string && data.endDate.size() == 10 && data.endDate.matches('^\\d{4}-\\d{2}-\\d{2}$') &&
+        data.workingDays is number && data.workingDays >= 0.5 && data.workingDays <= 180 &&
+        data.fiscalYear is int && data.fiscalYear >= 2560 && data.fiscalYear <= 2650 &&
+        data.priorUsedDays is number && data.priorUsedDays >= 0 && data.priorUsedDays <= 365 &&
+        isOptionalNumber(data, 'accumulatedDaysAtSubmit', 0, 60) &&
+        isOptionalNumber(data, 'annualQuotaAtSubmit', 0, 30) &&
+        isOptionalString(data, 'substituteUid', 128) &&
+        isOptionalString(data, 'substituteName', 120) &&
+        data.status in ['pending_verifier', 'pending_supervisor', 'approved', 'rejected', 'cancelled'] &&
+        isOptionalString(data, 'verifierUid', 128) &&
+        isOptionalString(data, 'verifierName', 120) &&
+        isOptionalString(data, 'verifierPosition', 120) &&
+        isOptionalString(data, 'verifiedAt', 40) &&
+        isOptionalString(data, 'supervisorUid', 128) &&
+        isOptionalString(data, 'supervisorName', 120) &&
+        isOptionalString(data, 'supervisorPosition', 120) &&
+        isOptionalString(data, 'supervisorComment', 400) &&
+        isOptionalString(data, 'decisionAt', 40) &&
+        isOptionalString(data, 'telegramNotifiedAt', 40) &&
+        isOptionalString(data, 'lineNotifiedAt', 40) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidLeavePrivate(data) {
+      return data.keys().hasAll(['requesterUid', 'writtenAt', 'addressedTo', 'updatedAt']) &&
+        data.keys().hasOnly([
+          'requesterUid', 'writtenAt', 'addressedTo', 'reason', 'contactAddress', 'contactPhone',
+          'overseasCountry', 'overseasPurpose', 'holidayDays', 'holidayRange',
+          'personalDays', 'personalRange', 'vacationDays', 'vacationRange',
+          'otherDays', 'otherLabel', 'otherRange', 'updatedAt'
+        ]) &&
+        isValidId(data.requesterUid) &&
+        data.writtenAt is string && data.writtenAt.size() >= 1 && data.writtenAt.size() <= 120 &&
+        data.addressedTo is string && data.addressedTo.size() >= 1 && data.addressedTo.size() <= 120 &&
+        isOptionalString(data, 'reason', 500) &&
+        isOptionalString(data, 'contactAddress', 300) &&
+        isOptionalString(data, 'contactPhone', 32) &&
+        isOptionalString(data, 'overseasCountry', 100) &&
+        isOptionalString(data, 'overseasPurpose', 200) &&
+        isOptionalNumber(data, 'holidayDays', 0, 180) &&
+        isOptionalString(data, 'holidayRange', 100) &&
+        isOptionalNumber(data, 'personalDays', 0, 180) &&
+        isOptionalString(data, 'personalRange', 100) &&
+        isOptionalNumber(data, 'vacationDays', 0, 180) &&
+        isOptionalString(data, 'vacationRange', 100) &&
+        isOptionalNumber(data, 'otherDays', 0, 180) &&
+        isOptionalString(data, 'otherLabel', 120) &&
+        isOptionalString(data, 'otherRange', 100) &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAuditLog(data) {
+      return data.keys().hasAll(['actorUid', 'actorName', 'action', 'createdAt']) &&
+        data.keys().hasOnly(['actorUid', 'actorName', 'action', 'note', 'createdAt']) &&
+        isValidId(data.actorUid) &&
+        data.actorName is string && data.actorName.size() >= 1 && data.actorName.size() <= 120 &&
+        data.action in ['submitted', 'verified', 'approved', 'rejected', 'cancelled', 'telegram_notified', 'line_notified', 'admin_edited', 'system_restored', 'edited'] &&
+        isOptionalString(data, 'note', 400) &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidTelegramLog(data) {
+      return data.keys().hasAll(['notificationId', 'requestId', 'senderUid', 'recipientRole', 'channelMode', 'deliveryStatus', 'summaryText', 'createdAt']) &&
+        data.keys().hasOnly(['notificationId', 'requestId', 'senderUid', 'recipientRole', 'channelMode', 'deliveryStatus', 'summaryText', 'createdAt']) &&
+        isValidId(data.notificationId) &&
+        isValidId(data.requestId) &&
+        isValidId(data.senderUid) &&
+        data.recipientRole in ['verifier', 'supervisor', 'requester'] &&
+        data.channelMode in ['telegram_bot_api', 'telegram_share', 'in_app_realtime', 'messaging_api', 'line_share'] &&
+        data.deliveryStatus in ['sent', 'ready_to_share', 'failed'] &&
+        data.summaryText is string && data.summaryText.size() >= 1 && data.summaryText.size() <= 500 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidSystemSettings(data) {
+      return data.keys().hasAll([
+          'settingId', 'officeName', 'provinceName', 'defaultDocumentPrefix',
+          'defaultAddressedTo', 'defaultSupervisorTitle', 'defaultAnnualVacationQuota',
+          'activeFiscalYear', 'departments', 'autoNotifyOnSubmit',
+          'updatedByUid', 'updatedByName', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'settingId', 'officeName', 'provinceName', 'defaultDocumentPrefix',
+          'defaultAddressedTo', 'defaultSupervisorTitle', 'defaultAnnualVacationQuota',
+          'activeFiscalYear', 'departments', 'autoNotifyOnSubmit',
+          'updatedByUid', 'updatedByName', 'updatedAt'
+        ]) &&
+        isValidId(data.settingId) &&
+        data.officeName is string && data.officeName.size() >= 2 && data.officeName.size() <= 160 &&
+        data.provinceName is string && data.provinceName.size() >= 2 && data.provinceName.size() <= 100 &&
+        data.defaultDocumentPrefix is string && data.defaultDocumentPrefix.size() >= 1 && data.defaultDocumentPrefix.size() <= 40 &&
+        data.defaultAddressedTo is string && data.defaultAddressedTo.size() >= 2 && data.defaultAddressedTo.size() <= 120 &&
+        data.defaultSupervisorTitle is string && data.defaultSupervisorTitle.size() >= 2 && data.defaultSupervisorTitle.size() <= 120 &&
+        data.defaultAnnualVacationQuota is number && data.defaultAnnualVacationQuota >= 0 && data.defaultAnnualVacationQuota <= 30 &&
+        data.activeFiscalYear is int && data.activeFiscalYear >= 2560 && data.activeFiscalYear <= 2650 &&
+        data.departments is list && data.departments.size() >= 1 && data.departments.size() <= 30 &&
+        data.departments[0] is string && data.departments[0].size() >= 2 && data.departments[0].size() <= 120 &&
+        data.autoNotifyOnSubmit is bool &&
+        isValidId(data.updatedByUid) &&
+        data.updatedByName is string && data.updatedByName.size() >= 1 && data.updatedByName.size() <= 120 &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidBackupLog(data) {
+      return data.keys().hasAll([
+          'backupId', 'actionType', 'createdByUid', 'createdByName',
+          'staffCount', 'leaveRequestCount', 'settingsIncluded', 'checksumSha256', 'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'backupId', 'actionType', 'createdByUid', 'createdByName',
+          'staffCount', 'leaveRequestCount', 'settingsIncluded', 'checksumSha256', 'note', 'createdAt'
+        ]) &&
+        isValidId(data.backupId) &&
+        data.actionType in ['export_json', 'export_csv', 'restore_json'] &&
+        isValidId(data.createdByUid) &&
+        data.createdByName is string && data.createdByName.size() >= 1 && data.createdByName.size() <= 120 &&
+        data.staffCount is int && data.staffCount >= 0 && data.staffCount <= 10000 &&
+        data.leaveRequestCount is int && data.leaveRequestCount >= 0 && data.leaveRequestCount <= 50000 &&
+        data.settingsIncluded is bool &&
+        data.checksumSha256 is string && data.checksumSha256.size() >= 8 && data.checksumSha256.size() <= 128 &&
+        isOptionalString(data, 'note', 400) &&
+        data.createdAt is timestamp;
+    }
+
+    // 4. Collection Rules
+    match /staff_directory/{staffId} {
+      allow get: if isSignedIn() && isValidId(staffId);
+      allow list: if isSignedIn() && (resource.data.isActive == true || resource.data.isActive == false);
+      allow create: if isSignedIn() && isValidId(staffId) && isValidStaffPublic(incoming()) &&
+        incoming().uid == staffId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time && (
+          isAdmin() || (staffId == request.auth.uid && incoming().role == 'staff')
+        );
+      allow update: if isSignedIn() && isValidId(staffId) && isValidStaffPublic(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (staffId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'position', 'department', 'employmentType', 'updatedAt'])) ||
+          (isApproverOrExecutive() && incoming().diff(existing()).affectedKeys().hasOnly(['usedVacationDays', 'usedSickDays', 'usedPersonalDays', 'usedOtherDays', 'updatedAt']))
+        );
+      allow delete: if isValidId(staffId) && isAdmin();
+    }
+
+    match /staff_private/{uid} {
+      allow get: if isSignedIn() && isValidId(uid) && (request.auth.uid == uid || isVerifierOrAbove());
+      allow list: if isSignedIn() && (resource.data.uid == request.auth.uid || isBootstrapAdmin());
+      allow create: if isSignedIn() && isValidId(uid) && isValidStaffPrivate(incoming()) &&
+        incoming().uid == uid &&
+        incoming().updatedAt == request.time &&
+        (uid == request.auth.uid || isAdmin());
+      allow update: if isSignedIn() && isValidId(uid) && isValidStaffPrivate(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().updatedAt == request.time &&
+        (uid == request.auth.uid || isAdmin());
+      allow delete: if isValidId(uid) && isAdmin();
+    }
+
+    match /leave_requests/{requestId} {
+      allow get: if isSignedIn() && isValidId(requestId);
+      allow list: if isSignedIn() && (resource.data.fiscalYear >= 2560 || resource.data.requesterUid == request.auth.uid);
+      allow create: if isSignedIn() && isValidId(requestId) && isValidLeaveRequest(incoming()) &&
+        incoming().requestId == requestId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/staff_directory/$(incoming().requesterUid)) && (
+          isAdmin() || (incoming().requesterUid == request.auth.uid && incoming().status == 'pending_verifier')
+        );
+      allow update: if isSignedIn() && isValidId(requestId) && isValidLeaveRequest(incoming()) &&
+        incoming().requestId == existing().requestId &&
+        incoming().requesterUid == existing().requesterUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (existing().status in ['pending_verifier', 'pending_supervisor'] || isAdmin()) && (
+          isAdmin() ||
+          (request.auth.uid == existing().requesterUid &&
+            existing().status in ['pending_verifier', 'pending_supervisor'] &&
+            incoming().status == 'cancelled' &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])) ||
+          (isVerifierOrAbove() &&
+            existing().status == 'pending_verifier' &&
+            incoming().status in ['pending_supervisor', 'rejected'] &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'verifierUid', 'verifierName', 'verifierPosition', 'verifiedAt', 'supervisorComment', 'updatedAt'])) ||
+          (isApproverOrExecutive() &&
+            existing().status in ['pending_verifier', 'pending_supervisor'] &&
+            incoming().status in ['approved', 'rejected'] &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'supervisorUid', 'supervisorName', 'supervisorPosition', 'supervisorComment', 'decisionAt', 'updatedAt'])) ||
+          ((request.auth.uid == existing().requesterUid || isVerifierOrAbove()) &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['telegramNotifiedAt', 'updatedAt'])) ||
+          (request.auth.uid == existing().requesterUid &&
+            existing().status in ['pending_verifier', 'pending_supervisor'] &&
+            incoming().status == 'pending_verifier' &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['leaveType', 'startDate', 'endDate', 'workingDays', 'fiscalYear', 'substituteUid', 'substituteName', 'status', 'updatedAt'])) ||
+          (isVerifierOrAbove() &&
+            existing().status in ['pending_verifier', 'pending_supervisor'] &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['documentNo', 'leaveType', 'startDate', 'endDate', 'workingDays', 'fiscalYear', 'substituteUid', 'substituteName', 'updatedAt']))
+        );
+      allow delete: if isValidId(requestId) && isAdmin();
+
+      match /private/{detailId} {
+        allow get: if isSignedIn() && isValidId(requestId) && isValidId(detailId) && (
+          get(/databases/$(database)/documents/leave_requests/$(requestId)).data.requesterUid == request.auth.uid ||
+          isVerifierOrAbove()
+        );
+        allow list: if isSignedIn() && (resource.data.requesterUid == request.auth.uid || isBootstrapAdmin());
+        allow create: if isSignedIn() && isValidId(requestId) && isValidId(detailId) && isValidLeavePrivate(incoming()) &&
+          incoming().updatedAt == request.time &&
+          (incoming().requesterUid == request.auth.uid || isAdmin()) && (
+            exists(/databases/$(database)/documents/leave_requests/$(requestId)) ||
+            existsAfter(/databases/$(database)/documents/leave_requests/$(requestId))
+          );
+        allow update: if isSignedIn() && isValidId(requestId) && isValidId(detailId) && isValidLeavePrivate(incoming()) &&
+          incoming().requesterUid == existing().requesterUid &&
+          incoming().updatedAt == request.time && (
+            isAdmin() ||
+            (existing().requesterUid == request.auth.uid &&
+              get(/databases/$(database)/documents/leave_requests/$(requestId)).data.status in ['pending_verifier', 'pending_supervisor']) ||
+            (isVerifierOrAbove() &&
+              get(/databases/$(database)/documents/leave_requests/$(requestId)).data.status in ['pending_verifier', 'pending_supervisor'])
+          );
+        allow delete: if isValidId(requestId) && isValidId(detailId) && isAdmin();
+      }
+
+      match /audit_logs/{logId} {
+        allow get: if isSignedIn() && isValidId(requestId) && isValidId(logId);
+        allow list: if isSignedIn() && resource.data.actorUid >= '';
+        allow create: if isSignedIn() && isValidId(requestId) && isValidId(logId) && isValidAuditLog(incoming()) &&
+          incoming().actorUid == request.auth.uid &&
+          incoming().createdAt == request.time && (
+            exists(/databases/$(database)/documents/leave_requests/$(requestId)) ||
+            existsAfter(/databases/$(database)/documents/leave_requests/$(requestId))
+          );
+        allow update, delete: if false;
+      }
+    }
+
+    match /telegram_notifications/{notificationId} {
+      allow get: if isSignedIn() && isValidId(notificationId);
+      allow list: if isSignedIn() && (resource.data.senderUid == request.auth.uid || isBootstrapAdmin());
+      allow create: if isSignedIn() && isValidId(notificationId) && isValidTelegramLog(incoming()) &&
+        incoming().senderUid == request.auth.uid &&
+        incoming().createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    match /line_notifications/{notificationId} {
+      allow get: if isSignedIn() && isValidId(notificationId);
+      allow list: if isSignedIn() && (resource.data.senderUid == request.auth.uid || isBootstrapAdmin());
+      allow create: if isSignedIn() && isValidId(notificationId) && isValidTelegramLog(incoming()) &&
+        incoming().senderUid == request.auth.uid &&
+        incoming().createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    match /admins/{uid} {
+      allow get: if isSignedIn() && isValidId(uid) && (request.auth.uid == uid || isAdmin());
+      allow list: if isSignedIn() && isBootstrapAdmin() && resource.data.uid >= '';
+      allow create, update: if isValidId(uid) && isBootstrapAdmin() &&
+        incoming().keys().hasAll(['uid', 'email', 'createdAt']) &&
+        incoming().keys().hasOnly(['uid', 'email', 'createdAt']) &&
+        isValidId(incoming().uid) &&
+        incoming().uid == uid &&
+        incoming().email is string && incoming().email.size() >= 3 && incoming().email.size() <= 160 &&
+        incoming().createdAt is timestamp;
+      allow delete: if isValidId(uid) && isBootstrapAdmin() && uid != request.auth.uid;
+    }
+
+    match /system_settings/{settingId} {
+      allow get: if isSignedIn() && isValidId(settingId);
+      allow list: if false;
+      allow create, update: if isSignedIn() && isValidId(settingId) &&
+        isValidSystemSettings(incoming()) &&
+        incoming().settingId == settingId &&
+        incoming().updatedByUid == request.auth.uid &&
+        incoming().updatedAt == request.time &&
+        isAdmin();
+      allow delete: if false;
+    }
+
+    match /backup_logs/{backupId} {
+      allow get: if isSignedIn() && isValidId(backupId) && isAdmin();
+      allow list: if isSignedIn() && (resource.data.createdByUid == request.auth.uid || isBootstrapAdmin());
+      allow create: if isSignedIn() && isValidId(backupId) &&
+        isValidBackupLog(incoming()) &&
+        incoming().backupId == backupId &&
+        incoming().createdByUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        isAdmin();
+      allow update, delete: if false;
+    }
+  }
+}

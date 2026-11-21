@@ -1,0 +1,663 @@
+{
+  "entities": {
+    "StaffPublicProfile": {
+      "title": "StaffPublicProfile",
+      "description": "Non-PII public organizational profile for Don Phut District Public Health Office personnel.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID or staff identifier",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "fullName": {
+          "type": "string",
+          "description": "Thai full name with title (e.g. นางสาวรักดี ใจชื่น)",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "position": {
+          "type": "string",
+          "description": "Official job title",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "department": {
+          "type": "string",
+          "description": "Sub-unit name (e.g. สำนักงานสาธารณสุขอำเภอดอนพุด, รพ.สต.ดงตะงาว)",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "employmentType": {
+          "type": "string",
+          "enum": ["ข้าราชการ", "พนักงานราชการ", "ลูกจ้างประจำ", "พนักงานกระทรวงสาธารณสุข", "ลูกจ้างชั่วคราว"]
+        },
+        "role": {
+          "type": "string",
+          "enum": ["staff", "verifier", "supervisor", "executive", "admin"]
+        },
+        "accumulatedVacationDays": {
+          "type": "number",
+          "description": "Accumulated vacation leave days from prior fiscal years"
+        },
+        "annualVacationQuota": {
+          "type": "number",
+          "description": "Annual vacation quota (typically 10 working days)"
+        },
+        "usedVacationDays": {
+          "type": "number"
+        },
+        "usedSickDays": {
+          "type": "number"
+        },
+        "usedPersonalDays": {
+          "type": "number"
+        },
+        "usedOtherDays": {
+          "type": "number"
+        },
+        "isActive": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "uid",
+        "fullName",
+        "position",
+        "department",
+        "employmentType",
+        "role",
+        "accumulatedVacationDays",
+        "annualVacationQuota",
+        "usedVacationDays",
+        "usedSickDays",
+        "usedPersonalDays",
+        "usedOtherDays",
+        "isActive",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "StaffPrivatePII": {
+      "title": "StaffPrivatePII",
+      "description": "Isolated PII record containing phone, address, email, hire date, and Telegram Chat ID.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 160
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "contactAddress": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "age": {
+          "type": "integer"
+        },
+        "hireDate": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "telegramChatId": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "lineUserId": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "updatedAt"]
+    },
+    "LeaveRequest": {
+      "title": "LeaveRequest",
+      "description": "Official leave request metadata and workflow approval state.",
+      "type": "object",
+      "properties": {
+        "requestId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "documentNo": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "requesterUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "requesterName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "requesterPosition": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "department": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "leaveType": {
+          "type": "string",
+          "enum": ["vacation", "sick", "personal", "maternity", "ordination", "overseas", "other"]
+        },
+        "startDate": {
+          "type": "string",
+          "maxLength": 20,
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "endDate": {
+          "type": "string",
+          "maxLength": 20,
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "workingDays": {
+          "type": "number"
+        },
+        "fiscalYear": {
+          "type": "integer"
+        },
+        "priorUsedDays": {
+          "type": "number"
+        },
+        "accumulatedDaysAtSubmit": {
+          "type": "number"
+        },
+        "annualQuotaAtSubmit": {
+          "type": "number"
+        },
+        "substituteUid": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "substituteName": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending_verifier", "pending_supervisor", "approved", "rejected", "cancelled"]
+        },
+        "verifierUid": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "verifierName": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "verifierPosition": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "verifiedAt": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "supervisorUid": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "supervisorName": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "supervisorPosition": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "supervisorComment": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "decisionAt": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "telegramNotifiedAt": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "lineNotifiedAt": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "requestId",
+        "requesterUid",
+        "requesterName",
+        "requesterPosition",
+        "department",
+        "leaveType",
+        "startDate",
+        "endDate",
+        "workingDays",
+        "fiscalYear",
+        "priorUsedDays",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "LeaveRequestPrivateDetails": {
+      "title": "LeaveRequestPrivateDetails",
+      "description": "Isolated PII and sensitive contact details for an official leave request.",
+      "type": "object",
+      "properties": {
+        "requesterUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "writtenAt": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "addressedTo": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "contactAddress": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "contactPhone": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "overseasCountry": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "overseasPurpose": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "holidayDays": {
+          "type": "number"
+        },
+        "holidayRange": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "personalDays": {
+          "type": "number"
+        },
+        "personalRange": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "vacationDays": {
+          "type": "number"
+        },
+        "vacationRange": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "otherDays": {
+          "type": "number"
+        },
+        "otherLabel": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "otherRange": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["requesterUid", "writtenAt", "addressedTo", "updatedAt"]
+    },
+    "LeaveAuditLog": {
+      "title": "LeaveAuditLog",
+      "description": "Immutable workflow audit entry for a leave request.",
+      "type": "object",
+      "properties": {
+        "actorUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "actorName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "submitted",
+            "verified",
+            "approved",
+            "rejected",
+            "cancelled",
+            "telegram_notified",
+            "line_notified",
+            "admin_edited",
+            "system_restored",
+            "edited"
+          ]
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["actorUid", "actorName", "action", "createdAt"]
+    },
+    "TelegramNotificationLog": {
+      "title": "TelegramNotificationLog",
+      "description": "Real-time Telegram notification dispatch record for tracking approval alerts.",
+      "type": "object",
+      "properties": {
+        "notificationId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "requestId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "senderUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "recipientRole": {
+          "type": "string",
+          "enum": ["verifier", "supervisor", "requester"]
+        },
+        "channelMode": {
+          "type": "string",
+          "enum": ["telegram_bot_api", "telegram_share", "in_app_realtime"]
+        },
+        "deliveryStatus": {
+          "type": "string",
+          "enum": ["sent", "ready_to_share", "failed"]
+        },
+        "summaryText": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "notificationId",
+        "requestId",
+        "senderUid",
+        "recipientRole",
+        "channelMode",
+        "deliveryStatus",
+        "summaryText",
+        "createdAt"
+      ]
+    },
+    "AdminMarker": {
+      "title": "AdminMarker",
+      "description": "Document indicating elevated administrator privileges.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 160
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "SystemSettings": {
+      "title": "SystemSettings",
+      "description": "Organization-wide configuration, active fiscal year, default document prefixes, and service units.",
+      "type": "object",
+      "properties": {
+        "settingId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "officeName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 160
+        },
+        "provinceName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "defaultDocumentPrefix": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "defaultAddressedTo": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "defaultSupervisorTitle": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "defaultAnnualVacationQuota": {
+          "type": "number"
+        },
+        "activeFiscalYear": {
+          "type": "integer"
+        },
+        "departments": {
+          "type": "array"
+        },
+        "autoNotifyOnSubmit": {
+          "type": "boolean"
+        },
+        "updatedByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "updatedByName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "settingId",
+        "officeName",
+        "provinceName",
+        "defaultDocumentPrefix",
+        "defaultAddressedTo",
+        "defaultSupervisorTitle",
+        "defaultAnnualVacationQuota",
+        "activeFiscalYear",
+        "departments",
+        "autoNotifyOnSubmit",
+        "updatedByUid",
+        "updatedByName",
+        "updatedAt"
+      ]
+    },
+    "BackupLog": {
+      "title": "BackupLog",
+      "description": "Immutable audit record of JSON/CSV backups and database restores executed by administrators.",
+      "type": "object",
+      "properties": {
+        "backupId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "actionType": {
+          "type": "string",
+          "enum": ["export_json", "export_csv", "restore_json"]
+        },
+        "createdByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdByName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "staffCount": {
+          "type": "integer"
+        },
+        "leaveRequestCount": {
+          "type": "integer"
+        },
+        "settingsIncluded": {
+          "type": "boolean"
+        },
+        "checksumSha256": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "backupId",
+        "actionType",
+        "createdByUid",
+        "createdByName",
+        "staffCount",
+        "leaveRequestCount",
+        "settingsIncluded",
+        "checksumSha256",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/staff_directory/{staffId}": {
+      "schema": { "$ref": "#/entities/StaffPublicProfile" },
+      "description": "Public organizational staff directory without PII."
+    },
+    "/staff_private/{uid}": {
+      "schema": { "$ref": "#/entities/StaffPrivatePII" },
+      "description": "Strictly isolated staff PII (phone, address, email, Telegram Chat ID)."
+    },
+    "/leave_requests/{requestId}": {
+      "schema": { "$ref": "#/entities/LeaveRequest" },
+      "description": "Leave request workflow metadata and statistical records."
+    },
+    "/leave_requests/{requestId}/private/{detailId}": {
+      "schema": { "$ref": "#/entities/LeaveRequestPrivateDetails" },
+      "description": "Isolated PII details (contact phone, address, overseas details) for a leave request."
+    },
+    "/leave_requests/{requestId}/audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/LeaveAuditLog" },
+      "description": "Immutable audit trail of leave workflow actions."
+    },
+    "/telegram_notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/TelegramNotificationLog" },
+      "description": "Real-time Telegram notification dispatch logs."
+    },
+    "/admins/{uid}": {
+      "schema": { "$ref": "#/entities/AdminMarker" },
+      "description": "Trusted administrator lookup collection."
+    },
+    "/system_settings/{settingId}": {
+      "schema": { "$ref": "#/entities/SystemSettings" },
+      "description": "System-wide configuration, units, and fiscal defaults."
+    },
+    "/backup_logs/{backupId}": {
+      "schema": { "$ref": "#/entities/BackupLog" },
+      "description": "Immutable backup and restore audit history."
+    }
+  }
+}
